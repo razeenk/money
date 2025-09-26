@@ -364,7 +364,6 @@ export default function SavingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <>
         <ScrollView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -831,7 +830,6 @@ export default function SavingsScreen() {
             </View>
           </View>
         </Modal>
-      </>
     </SafeAreaView>
   );
 }
