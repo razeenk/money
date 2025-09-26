@@ -1,9 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Home, Trophy, BarChart3, Settings } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -11,8 +9,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#1E2A3A',
           borderTopWidth: 0,
-          height: 60,
-          paddingBottom: 8,
+          height: 80,
+          paddingBottom: 20,
           paddingTop: 8,
         },
         tabBarActiveTintColor: '#4A9EFF',
