@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottom = Math.max(insets.bottom, 6);
   return (
     <Tabs
       screenOptions={{
@@ -12,9 +11,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#1E2A3A',
           borderTopWidth: 0,
-          height: 48 + bottom,
-          paddingBottom: bottom,
-          paddingTop: 4,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: '#4A9EFF',
         tabBarInactiveTintColor: '#8B9DC3',
@@ -22,8 +21,6 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '500',
         },
-        tabBarActiveBackgroundColor: 'transparent',
-        tabBarInactiveBackgroundColor: 'transparent',
       }}>
       <Tabs.Screen
         name="index"
