@@ -20,7 +20,7 @@ export default function SettingsScreen() {
       section: 'App',
       items: [
         {
-          icon: banknote,
+          icon: DollarSign,
           title: 'Currency',
           description: 'Set your default currency',
           onPress: () => console.log('Currency pressed'),
