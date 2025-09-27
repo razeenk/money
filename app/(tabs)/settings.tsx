@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 12,
@@ -152,13 +152,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
     marginBottom: 2,
   },
   settingDescription: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#8B9DC3',
   },
 });

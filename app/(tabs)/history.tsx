@@ -184,13 +184,13 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   title: {
-    fontSize: 32,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
   },
   emptyState: {
@@ -200,13 +200,13 @@ const styles = StyleSheet.create({
     padding: 48,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#666666',
     marginTop: 16,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#999999',
     marginTop: 4,
     textAlign: 'center',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   dateHeader: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#000000',
     marginBottom: 12,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   transactionTime: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#666666',
   },
   transactionRight: {

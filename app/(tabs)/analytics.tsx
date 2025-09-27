@@ -322,10 +322,10 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   title: {
-    fontSize: 32,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   section: {
     marginBottom: 32,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -363,12 +363,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#8B9DC3',
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -377,13 +377,13 @@ const styles = StyleSheet.create({
     padding: 48,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#8B9DC3',
     marginTop: 16,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#8B9DC3',
     marginTop: 4,
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   goalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 24,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#8B9DC3',
     marginBottom: 8,

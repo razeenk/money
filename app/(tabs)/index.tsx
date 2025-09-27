@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   balanceLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#8B9DC3',
     marginBottom: 8,
   },
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   balanceAmount: {
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   transactionsTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 16,
@@ -1038,17 +1038,16 @@ const styles = StyleSheet.create({
     height: 24,
   },
   closeIcon: {
-    fontSize: 24,
+    fontSize: 18,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
   title: {
-    flex: 1,
-    textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    paddingRight: 24,
+    flex: 1,
+    textAlign: 'center',
   },
   spacer: {
     width: 24,
