@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Search, DollarSign } from 'lucide-react-native';
+import { X, Search, DollarSign, Euro, PoundSterling, Banknote, Coins } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useCurrency, currencies, Currency } from '@/contexts/CurrencyContext';
 
@@ -20,9 +20,26 @@ export default function CurrencyScreen() {
   };
 
   const getCurrencyIcon = (code: string) => {
-    // Using DollarSign for all currencies as a placeholder
-    // In a real app, you might want different icons for different currencies
-    return <DollarSign size={20} color="#4A9EFF" />;
+    const iconProps = { size: 20, color: "#4A9EFF" };
+    
+    switch (code) {
+      case 'USD':
+      case 'CAD':
+      case 'AUD':
+        return <DollarSign {...iconProps} />;
+      case 'EUR':
+        return <Euro {...iconProps} />;
+      case 'GBP':
+        return <PoundSterling {...iconProps} />;
+      case 'JPY':
+      case 'CNY':
+        return <Coins {...iconProps} />;
+      case 'CHF':
+      case 'INR':
+        return <Banknote {...iconProps} />;
+      default:
+        return <DollarSign {...iconProps} />;
+    }
   };
 
   return (
@@ -68,14 +85,9 @@ export default function CurrencyScreen() {
             <View style={styles.currencyIcon}>
               {getCurrencyIcon(currency.code)}
             </View>
-            <View style={styles.currencyInfo}>
-              <Text style={styles.currencyName}>
-                {currency.name} ({currency.code})
-              </Text>
-              <Text style={styles.currencySymbol}>
-                Symbol: {currency.symbol}
-              </Text>
-            </View>
+            <Text style={styles.currencyName}>
+              {currency.name} ({currency.code})
+            </Text>
             {selectedCurrency.code === currency.code && (
               <View style={styles.selectedIndicator} />
             )}
@@ -164,18 +176,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  currencyInfo: {
-    flex: 1,
-  },
   currencyName: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '500',
     color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  currencySymbol: {
-    fontSize: 12,
-    color: '#8B9DC3',
   },
   selectedIndicator: {
     width: 8,
