@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Target, Calendar, TrendingUp, Plus } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Transaction {
   id: number;
@@ -25,6 +26,7 @@ interface Goal {
 export default function AnalyticsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalSavings, setTotalSavings] = useState(0);
+  const { formatAmount } = useCurrency();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [goalTitle, setGoalTitle] = useState('');
@@ -130,14 +132,6 @@ export default function AnalyticsScreen() {
       monthlyTarget,
       progress: Math.min(100, (totalSavings / goal.targetAmount) * 100),
     };
-  };
-
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
   };
 
   const stats = calculateStats();

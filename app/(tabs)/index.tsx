@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, ScrollView,
 import { Eye, EyeOff, ArrowDownLeft, ArrowUpRight, ShoppingCart, Chrome as HomeIcon, Briefcase, Trash2, Calendar as CalendarIcon, Zap, Utensils, Bus, ShoppingBag, HeartPulse, Film, Circle, HandCoins, House, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Transaction {
   id: number;
@@ -16,6 +17,7 @@ interface Transaction {
 
 export default function SavingsScreen() {
   const [totalSavings, setTotalSavings] = useState(0);
+  const { formatAmount } = useCurrency();
   const [selectedDate, setSelectedDate] = useState('');
   const [showAmount, setShowAmount] = useState(true);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -262,15 +264,6 @@ export default function SavingsScreen() {
     setConfirmVisible(true);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
   const formatDisplayDate = (iso: string) => {
     const d = new Date(iso);
     const dd = String(d.getDate()).padStart(2, '0');
@@ -389,7 +382,7 @@ export default function SavingsScreen() {
           <Text style={styles.balanceLabel}>Balance</Text>
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceAmount}>
-              {showAmount ? formatCurrency(totalSavings) : '****'}
+              {showAmount ? formatAmount(totalSavings) : '****'}
             </Text>
             <TouchableOpacity 
               style={styles.eyeButton}
@@ -449,7 +442,7 @@ export default function SavingsScreen() {
                     styles.transactionAmount,
                     transaction.type === 'add' ? styles.positiveAmount : styles.negativeAmount
                   ]}>
-                    {transaction.type === 'add' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    {transaction.type === 'add' ? '+' : '-'}{formatAmount(transaction.amount)}
                   </Text>
                 </View>
               </TouchableOpacity>

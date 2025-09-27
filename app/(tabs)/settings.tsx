@@ -2,8 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, DollarSign, Bell, Lock, Download, ChevronRight } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function SettingsScreen() {
+  const { selectedCurrency } = useCurrency();
+
   const settingsItems = [
     {
       section: 'Profile',
@@ -23,7 +27,7 @@ export default function SettingsScreen() {
           icon: DollarSign,
           title: 'Currency',
           description: 'Set your default currency',
-          onPress: () => console.log('Currency pressed'),
+          onPress: () => router.push('/currency'),
         },
         {
           icon: Bell,
