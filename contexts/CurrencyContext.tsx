@@ -22,6 +22,7 @@ const currencies: Currency[] = [
   { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
   { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
   { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+  { code: 'INR', name: 'Indian Rupees', symbol: '₹'}
 ];
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
