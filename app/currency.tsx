@@ -20,7 +20,7 @@ export default function CurrencyScreen() {
   };
 
   const getCurrencyIcon = (code: string) => {
-    const iconProps = { size: 20, color: "#4A9EFF" };
+    const iconProps = { size: 18, color: "#4A9EFF" };
     
     switch (code) {
       case 'USD':
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     color: '#FFFFFF',
   },
   scrollView: {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   currencyName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
   },
