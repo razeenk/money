@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: '#FFFFFF',
   },
   scrollView: {
@@ -168,13 +168,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   currencyName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#FFFFFF',
     marginBottom: 4,
   },
   currencySymbol: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#8B9DC3',
   },
   selectedIndicator: {
