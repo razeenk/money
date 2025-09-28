@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Animated, Easing, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Car, Home, GraduationCap, Plane, PiggyBank, Gift, Smartphone, Heart, ShoppingCart, Plus, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -48,7 +48,7 @@ export default function GoalsScreen() {
       if (goalsData) {
         setGoals(JSON.parse(goalsData));
       } else {
-        // Set default goals with saved amounts
+        // Set default goals
         const defaultGoals = [
           {
             id: 1,
@@ -183,14 +183,24 @@ export default function GoalsScreen() {
   const createGoal = async () => {
     const amount = parseFloat(goalAmount);
     
-    if (!goalTitle || isNaN(amount) || amount <= 0 || !goalDeadline) {
-      Alert.alert('Invalid Input', 'Please fill in all required fields with valid values');
+    if (!goalTitle.trim()) {
+      Alert.alert('Invalid Input', 'Please enter a goal name');
+      return;
+    }
+    
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid target amount');
+      return;
+    }
+    
+    if (!goalDeadline.trim()) {
+      Alert.alert('Invalid Input', 'Please select a target date');
       return;
     }
 
     const newGoal: Goal = {
       id: Date.now(),
-      title: goalTitle,
+      title: goalTitle.trim(),
       targetAmount: amount,
       savedAmount: 0,
       deadline: parseDate(goalDeadline).toISOString(),
@@ -204,8 +214,10 @@ export default function GoalsScreen() {
     
     try {
       await AsyncStorage.setItem('goals', JSON.stringify(updatedGoals));
+      Alert.alert('Success', 'Goal created successfully!');
     } catch (error) {
       console.error('Error saving goal:', error);
+      Alert.alert('Error', 'Failed to save goal');
     }
 
     resetForm();
@@ -221,6 +233,11 @@ export default function GoalsScreen() {
       return;
     }
 
+    if (amount > selectedGoal.targetAmount) {
+      Alert.alert('Amount Exceeded', 'Saved amount cannot exceed target amount');
+      return;
+    }
+
     const updatedGoals = goals.map(goal => 
       goal.id === selectedGoal.id 
         ? { ...goal, savedAmount: amount }
@@ -231,8 +248,10 @@ export default function GoalsScreen() {
     
     try {
       await AsyncStorage.setItem('goals', JSON.stringify(updatedGoals));
+      Alert.alert('Success', 'Goal updated successfully!');
     } catch (error) {
       console.error('Error updating goal:', error);
+      Alert.alert('Error', 'Failed to update goal');
     }
 
     setUpdateModalVisible(false);
@@ -252,8 +271,8 @@ export default function GoalsScreen() {
     return Math.min(100, (goal.savedAmount / goal.targetAmount) * 100);
   };
 
-  const getGoalIcon = (iconName: string) => {
-    const iconProps = { size: 96, color: '#4A9EFF' }; // Multiplied by 4
+  const getGoalIcon = (iconName: string, size: number = 24) => {
+    const iconProps = { size, color: '#4A9EFF' };
     
     switch (iconName) {
       case 'car': return <Car {...iconProps} />;
@@ -282,7 +301,7 @@ export default function GoalsScreen() {
   ];
 
   const formatDisplayDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-GB');
   };
 
   return (
@@ -317,7 +336,7 @@ export default function GoalsScreen() {
               >
                 <View style={styles.goalHeader}>
                   <View style={styles.goalIconContainer}>
-                    {getGoalIcon(goal.icon)}
+                    {getGoalIcon(goal.icon, 24)}
                   </View>
                   <View style={styles.goalInfo}>
                     <View style={styles.goalTitleRow}>
@@ -328,6 +347,7 @@ export default function GoalsScreen() {
                       <Text style={styles.goalTarget}>of {formatAmount(goal.targetAmount)}</Text>
                       <Text style={styles.goalPercentage}>{progress.toFixed(0)}%</Text>
                     </View>
+                    <Text style={styles.goalDeadline}>Due: {formatDisplayDate(goal.deadline)}</Text>
                   </View>
                 </View>
                 
@@ -440,7 +460,7 @@ export default function GoalsScreen() {
                     onPress={() => setSelectedIcon(option.name)}
                   >
                     <option.icon 
-                      size={96} 
+                      size={32} 
                       color={selectedIcon === option.name ? '#4A9EFF' : '#8B9DC3'} 
                     />
                   </TouchableOpacity>
@@ -577,6 +597,7 @@ export default function GoalsScreen() {
                     }}
                   >
                     <View style={[styles.dayInner, isSelected && styles.dayInnerSelected]}>
+                      <Text style={[styles.dayText, !isCurrentMonth && styles.dayTextMuted]}>
                         {d.getDate()}
                       </Text>
                     </View>
@@ -774,23 +795,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
   },
-  dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fieldContainer: {
     backgroundColor: '#111C2A',
     borderRadius: 12,
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  dateInput: {
+  fieldInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
     color: '#FFFFFF',
   },
-  calendarIcon: {
-    marginLeft: 8,
+  calendarIconBtn: {
+    marginLeft: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   iconGrid: {
     flexDirection: 'row',
@@ -798,8 +826,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   iconOption: {
-    width: '22%',
-    aspectRatio: 1,
+    width: '48%',
+    height: 80,
     borderRadius: 12,
     backgroundColor: '#111C2A',
     borderWidth: 2,
@@ -976,31 +1004,6 @@ const styles = StyleSheet.create({
   },
   dayInnerSelected: {
     backgroundColor: 'rgba(71, 129, 230, 0.25)',
-  },
-  fieldContainer: {
-    backgroundColor: '#111C2A',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  fieldInput: {
-    flex: 1,
-    padding: 16,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  calendarIconBtn: {
-    marginLeft: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   pickerCancel: {
     marginTop: 8,
