@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Animated, Easing, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Car, Home, GraduationCap, Plane, PiggyBank, Gift, Smartphone, Heart, ShoppingCart, Plus, X, Calendar } from 'lucide-react-native';
+import { Car, Home, GraduationCap, Plane, PiggyBank, Gift, Smartphone, Heart, ShoppingCart, Plus, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
@@ -23,6 +23,13 @@ export default function GoalsScreen() {
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [updateAmount, setUpdateAmount] = useState('');
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const animTranslate = useRef(new Animated.Value(0)).current;
+  const animOpacity = useRef(new Animated.Value(1)).current;
+  const calOverlayOpacity = useRef(new Animated.Value(0)).current;
+  const calSheetTranslateY = useRef(new Animated.Value(24)).current;
+  const calSheetOpacity = useRef(new Animated.Value(0)).current;
   
   // Form states
   const [goalTitle, setGoalTitle] = useState('');
@@ -82,6 +89,97 @@ export default function GoalsScreen() {
     }
   };
 
+  // Calendar helper functions
+  const formatDate = (date: Date) => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const parseDate = (value: string) => {
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return new Date();
+    const d = Math.min(31, Math.max(1, parseInt(match[1], 10)));
+    const m = Math.min(12, Math.max(1, parseInt(match[2], 10))) - 1;
+    const y = parseInt(match[3], 10);
+    const dt = new Date(y, m, d);
+    if (isNaN(dt.getTime())) return new Date();
+    return dt;
+  };
+
+  const maskToDDMMYYYY = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '').slice(0, 8);
+    let out = '';
+    if (digits.length <= 2) return digits;
+    out = digits.slice(0, 2) + '/';
+    if (digits.length <= 4) return out + digits.slice(2);
+    out += digits.slice(2, 4) + '/';
+    return out + digits.slice(4);
+  };
+
+  const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+  const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const addMonths = (date: Date, n: number) => new Date(date.getFullYear(), date.getMonth() + n, 1);
+  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const switchMonth = (delta: number) => {
+    setCalendarMonth(prev => addMonths(prev, delta));
+    animTranslate.setValue(delta * 32);
+    animOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(animTranslate, { toValue: 0, duration: 140, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(animOpacity, { toValue: 1, duration: 140, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  };
+
+  const getMonthDaysGrid = (date: Date) => {
+    const start = startOfMonth(date);
+    const end = endOfMonth(date);
+    const daysInMonth = end.getDate();
+    const firstWeekday = start.getDay();
+    const grid: Date[] = [];
+    
+    for (let i = 0; i < firstWeekday; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() - (firstWeekday - i));
+      grid.push(d);
+    }
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      grid.push(new Date(date.getFullYear(), date.getMonth(), d));
+    }
+    
+    while (grid.length % 7 !== 0 || grid.length < 42) {
+      const last = grid[grid.length - 1];
+      const next = new Date(last);
+      next.setDate(next.getDate() + 1);
+      grid.push(next);
+    }
+    return grid;
+  };
+
+  useEffect(() => {
+    if (datePickerVisible) {
+      calOverlayOpacity.setValue(0);
+      calSheetTranslateY.setValue(24);
+      calSheetOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(calOverlayOpacity, { toValue: 1, duration: 120, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(calSheetTranslateY, { toValue: 0, duration: 160, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(calSheetOpacity, { toValue: 1, duration: 160, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    }
+  }, [datePickerVisible]);
+
+  const closeCalendar = () => {
+    Animated.parallel([
+      Animated.timing(calOverlayOpacity, { toValue: 0, duration: 100, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(calSheetTranslateY, { toValue: 24, duration: 140, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(calSheetOpacity, { toValue: 0, duration: 140, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+    ]).start(() => setDatePickerVisible(false));
+  };
+
   const createGoal = async () => {
     const amount = parseFloat(goalAmount);
     
@@ -95,7 +193,7 @@ export default function GoalsScreen() {
       title: goalTitle,
       targetAmount: amount,
       savedAmount: 0,
-      deadline: goalDeadline,
+      deadline: parseDate(goalDeadline).toISOString(),
       createdAt: new Date().toISOString(),
       icon: selectedIcon,
       description: description.trim() || undefined,
@@ -155,7 +253,7 @@ export default function GoalsScreen() {
   };
 
   const getGoalIcon = (iconName: string) => {
-    const iconProps = { size: 24, color: '#4A9EFF' };
+    const iconProps = { size: 96, color: '#4A9EFF' }; // Multiplied by 4
     
     switch (iconName) {
       case 'car': return <Car {...iconProps} />;
@@ -172,18 +270,18 @@ export default function GoalsScreen() {
   };
 
   const iconOptions = [
-    { name: 'car', icon: Car, label: 'Car' },
-    { name: 'home', icon: Home, label: 'Home' },
-    { name: 'graduation', icon: GraduationCap, label: 'Education' },
-    { name: 'plane', icon: Plane, label: 'Travel' },
-    { name: 'piggybank', icon: PiggyBank, label: 'Savings' },
-    { name: 'gift', icon: Gift, label: 'Gift' },
-    { name: 'smartphone', icon: Smartphone, label: 'Electronics' },
-    { name: 'heart', icon: Heart, label: 'Health' },
-    { name: 'shopping', icon: ShoppingCart, label: 'Shopping' },
+    { name: 'car', icon: Car },
+    { name: 'home', icon: Home },
+    { name: 'graduation', icon: GraduationCap },
+    { name: 'plane', icon: Plane },
+    { name: 'piggybank', icon: PiggyBank },
+    { name: 'gift', icon: Gift },
+    { name: 'smartphone', icon: Smartphone },
+    { name: 'heart', icon: Heart },
+    { name: 'shopping', icon: ShoppingCart },
   ];
 
-  const formatDate = (dateString: string) => {
+  const formatDisplayDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -305,15 +403,26 @@ export default function GoalsScreen() {
             {/* Target Date */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Target date</Text>
-              <View style={styles.dateInputContainer}>
+              <View style={styles.fieldContainer}>
                 <TextInput
-                  style={styles.dateInput}
-                  value={goalDeadline}
-                  onChangeText={setGoalDeadline}
-                  placeholder="YYYY-MM-DD"
+                  style={styles.fieldInput}
+                  placeholder="dd/mm/yyyy"
                   placeholderTextColor="#8B9DC3"
+                  value={goalDeadline}
+                  editable
+                  maxLength={10}
+                  keyboardType="number-pad"
+                  onChangeText={(v) => setGoalDeadline(maskToDDMMYYYY(v))}
                 />
-                <Calendar size={20} color="#8B9DC3" style={styles.calendarIcon} />
+                <TouchableOpacity
+                  style={styles.calendarIconBtn}
+                  onPress={() => {
+                    setCalendarMonth(parseDate(goalDeadline || formatDate(new Date())));
+                    setDatePickerVisible(true);
+                  }}
+                >
+                  <Calendar size={18} color="#8B9DC3" />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -331,7 +440,7 @@ export default function GoalsScreen() {
                     onPress={() => setSelectedIcon(option.name)}
                   >
                     <option.icon 
-                      size={24} 
+                      size={96} 
                       color={selectedIcon === option.name ? '#4A9EFF' : '#8B9DC3'} 
                     />
                   </TouchableOpacity>
@@ -427,6 +536,60 @@ export default function GoalsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Calendar Date Picker */}
+      <Modal
+        visible={datePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <Animated.View style={[styles.pickerOverlay, { opacity: calOverlayOpacity }]}>
+          <Pressable style={styles.overlayDismiss} onPress={closeCalendar} />
+          <Animated.View style={[styles.calendarSheet, { transform: [{ translateY: calSheetTranslateY }], opacity: calSheetOpacity }]}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity style={styles.navBtn} onPress={() => switchMonth(-1)}>
+                <ChevronLeft size={18} color="#8B9DC3" />
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>
+                {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
+              <TouchableOpacity style={styles.navBtn} onPress={() => switchMonth(1)}>
+                <ChevronRight size={18} color="#8B9DC3" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.weekdaysRow}>
+              {['S','M','T','W','T','F','S'].map(d => (
+                <Text key={d} style={styles.weekday}>{d}</Text>
+              ))}
+            </View>
+            <Animated.View style={[styles.daysGrid, { transform: [{ translateX: animTranslate }], opacity: animOpacity }]}>
+              {getMonthDaysGrid(calendarMonth).map((d, idx) => {
+                const isCurrentMonth = d.getMonth() === calendarMonth.getMonth();
+                const isSelected = sameDay(d, parseDate(goalDeadline || formatDate(new Date())));
+                return (
+                  <TouchableOpacity
+                    key={`${d.toISOString()}-${idx}`}
+                    style={styles.dayCell}
+                    onPress={() => {
+                      setGoalDeadline(formatDate(d));
+                      closeCalendar();
+                    }}
+                  >
+                    <View style={[styles.dayInner, isSelected && styles.dayInnerSelected]}>
+                        {d.getDate()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </Animated.View>
+            <TouchableOpacity style={styles.pickerCancel} onPress={closeCalendar}>
+              <Text style={styles.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -521,6 +684,11 @@ const styles = StyleSheet.create({
   goalPercentage: {
     fontSize: 14,
     color: '#8B9DC3',
+  },
+  goalDeadline: {
+    fontSize: 12,
+    color: '#8B9DC3',
+    marginTop: 4,
   },
   progressBarContainer: {
     marginTop: 12,
@@ -627,17 +795,18 @@ const styles = StyleSheet.create({
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
   },
   iconOption: {
-    width: 64,
-    height: 64,
+    width: '22%',
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: '#111C2A',
     borderWidth: 2,
     borderColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
   selectedIconOption: {
     borderColor: '#4A9EFF',
@@ -726,5 +895,125 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Calendar styles
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  overlayDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  calendarSheet: {
+    backgroundColor: '#101922',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 16,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  calendarMonthText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A3F54',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekdaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  weekday: {
+    width: `${100/7}%`,
+    textAlign: 'center',
+    color: '#8B9DC3',
+    fontSize: 12,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
+  },
+  dayCell: {
+    width: `${100/7}%`,
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  dayTextMuted: {
+    color: '#58708A',
+  },
+  dayInnerSelected: {
+    backgroundColor: 'rgba(71, 129, 230, 0.25)',
+  },
+  fieldContainer: {
+    backgroundColor: '#111C2A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  fieldInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  calendarIconBtn: {
+    marginLeft: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  pickerCancel: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A3F54',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerCancelText: {
+    color: '#8B9DC3',
+    fontSize: 16,
   },
 });
