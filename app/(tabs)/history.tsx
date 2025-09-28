@@ -27,12 +27,26 @@ export default function ReportsScreen() {
   const [timeFilter, setTimeFilter] = useState<'all' | 'last30' | 'thisYear'>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryData | null>(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [selectedMonthData, setSelectedMonthData] = useState<any>(null);
+  const [monthDetailsVisible, setMonthDetailsVisible] = useState(false);
   const { formatAmount } = useCurrency();
 
   useEffect(() => {
     loadTransactions();
   }, []);
 
+  // Add focus listener to reload data when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadTransactions();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  // Reload data when report type or time filter changes
+  useEffect(() => {
+    loadTransactions();
+  }, [reportType, timeFilter]);
   const loadTransactions = async () => {
     try {
       const transactionsData = await AsyncStorage.getItem('transactions');
@@ -86,6 +100,34 @@ export default function ReportsScreen() {
     const currentMonth = new Date().getMonth();
     const startMonth = Math.max(0, currentMonth - 5);
     return monthlyData.slice(startMonth, currentMonth + 1);
+  };
+
+  const getMonthCategoryData = (monthIndex: number) => {
+    const currentYear = new Date().getFullYear();
+    const filtered = getFilteredTransactions().filter(t => {
+      const date = new Date(t.date);
+      return date.getMonth() === monthIndex && date.getFullYear() === currentYear;
+    });
+
+    const categoryTotals: { [key: string]: number } = {};
+    filtered.forEach(t => {
+      const category = t.category || 'Other';
+      categoryTotals[category] = (categoryTotals[category] || 0) + t.amount;
+    });
+
+    const total = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+    
+    return {
+      categories: Object.entries(categoryTotals)
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          percentage: total > 0 ? (amount / total) * 100 : 0
+        }))
+        .sort((a, b) => b.amount - a.amount),
+      total,
+      month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthIndex]
+    };
   };
 
   // Category colors mapping
@@ -149,6 +191,15 @@ export default function ReportsScreen() {
   const handleCategoryPress = (category: CategoryData) => {
     setSelectedCategory(category);
     setDetailsVisible(true);
+  };
+
+  const handleMonthPress = (monthData: any, monthIndex: number) => {
+    const categoryData = getMonthCategoryData(monthIndex);
+    setSelectedMonthData({
+      ...monthData,
+      ...categoryData
+    });
+    setMonthDetailsVisible(true);
   };
 
   const monthlyData = getMonthlyData();
@@ -264,27 +315,106 @@ export default function ReportsScreen() {
             </View>
           </View>
 
+
+        {/* Month Details Modal */}
+        <Modal
+          visible={monthDetailsVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMonthDetailsVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable style={styles.overlayDismiss} onPress={() => setMonthDetailsVisible(false)} />
+            <View style={styles.detailsModal}>
+              <View style={styles.detailsHeader}>
+                <Text style={styles.detailsTitle}>
+                  {selectedMonthData?.month} {reportType === 'spending' ? 'Spending' : 'Income'}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setMonthDetailsVisible(false)}
+                >
+                  <X size={20} color="#8B9DC3" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.detailsSubtitle}>
+                Total: {selectedMonthData?.total ? formatAmount(selectedMonthData.total) : '$0.00'}
+              </Text>
+
+              <ScrollView style={styles.detailsList} showsVerticalScrollIndicator={false}>
+                {selectedMonthData?.categories?.map((category: any, index: number) => (
+                  <View key={category.name} style={styles.detailsItem}>
+                    <View style={styles.detailsItemLeft}>
+                      <View 
+                        style={[
+                          styles.categoryColorDot, 
+                          { backgroundColor: getCategoryColor(category.name, index) }
+                        ]} 
+                      />
+                      <Text style={styles.detailsCategoryName}>{category.name}</Text>
+                    </View>
+                    <View style={styles.detailsItemRight}>
+                      <Text style={styles.detailsAmount}>{formatAmount(category.amount)}</Text>
+                      <Text style={styles.detailsPercentage}>{category.percentage.toFixed(1)}%</Text>
+                    </View>
+                  </View>
+                )) || (
+                  <Text style={styles.emptyText}>No transactions for this month</Text>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
           {/* Bar Chart */}
           <View style={styles.barChart}>
-            {monthlyData.map((data, index) => {
+            {monthlyData.map((data, index, array) => {
               const height = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
-              const isCurrentMonth = index === monthlyData.length - 1; // Current month is highlighted
+              const isCurrentMonth = index === array.length - 1;
+              const actualMonthIndex = new Date().getMonth() - (array.length - 1 - index);
+              const monthCategoryData = getMonthCategoryData(actualMonthIndex);
               
               return (
-                <View key={data.month} style={styles.barContainer}>
+                <TouchableOpacity 
+                  key={data.month} 
+                  style={styles.barContainer}
+                  onPress={() => handleMonthPress(data, actualMonthIndex)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.barWrapper}>
-                    <View 
-                      style={[
-                        styles.bar,
-                        isCurrentMonth ? styles.activeBar : styles.inactiveBar,
-                        { height: `${Math.max(height, 5)}%` }
-                      ]} 
-                    />
+                    {monthCategoryData.categories.length > 0 ? (
+                      <View style={[styles.bar, { height: `${Math.max(height, 5)}%` }]}>
+                        {monthCategoryData.categories.map((category, catIndex) => {
+                          const categoryHeight = (category.amount / data.amount) * 100;
+                          return (
+                            <View
+                              key={category.name}
+                              style={[
+                                styles.barSegment,
+                                {
+                                  height: `${categoryHeight}%`,
+                                  backgroundColor: getCategoryColor(category.name, catIndex),
+                                }
+                              ]}
+                            />
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <View 
+                        style={[
+                          styles.bar,
+                          isCurrentMonth ? styles.activeBar : styles.inactiveBar,
+                          { height: `${Math.max(height, 5)}%` }
+                        ]} 
+                      />
+                    )}
                   </View>
+                  <Text style={styles.barAmount}>{formatAmount(data.amount)}</Text>
                   <Text style={[styles.barLabel, isCurrentMonth && styles.activeBarLabel]}>
                     {data.month}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -515,12 +645,24 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 4,
     minHeight: 8,
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+  },
+  barSegment: {
+    width: '100%',
+    borderRadius: 2,
   },
   activeBar: {
     backgroundColor: '#4A9EFF',
   },
   inactiveBar: {
     backgroundColor: 'rgba(74, 158, 255, 0.3)',
+  },
+  barAmount: {
+    fontSize: 10,
+    color: '#8B9DC3',
+    textAlign: 'center',
+    marginBottom: 2,
   },
   barLabel: {
     fontSize: 12,
@@ -654,5 +796,11 @@ const styles = StyleSheet.create({
   detailsPercentage: {
     fontSize: 16,
     color: '#8B9DC3',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#8B9DC3',
+    textAlign: 'center',
+    padding: 20,
   },
 });
