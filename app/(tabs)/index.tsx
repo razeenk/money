@@ -759,7 +759,7 @@ export default function SavingsScreen() {
                   <View style={styles.detailsRow}>
                     <Text style={styles.detailsLabel}>Amount</Text>
                     <Text style={[styles.detailsValue, selectedTransaction.type === 'add' ? styles.positiveAmount : styles.negativeAmount]}>
-                      {selectedTransaction.type === 'add' ? '+' : '-'}{formatCurrency(selectedTransaction.amount)}
+                      {selectedTransaction.type === 'add' ? '+' : '-'}{formatAmount(selectedTransaction.amount)}
                     </Text>
                   </View>
                   <View style={styles.detailsRow}>

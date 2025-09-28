@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Transaction {
@@ -23,6 +24,7 @@ interface CategoryData {
 
 export default function ReportsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const navigation = useNavigation();
   const [reportType, setReportType] = useState<'spending' | 'income'>('spending');
   const [timeFilter, setTimeFilter] = useState<'all' | 'last30' | 'thisYear'>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryData | null>(null);
