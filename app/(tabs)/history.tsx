@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
@@ -25,6 +25,8 @@ export default function ReportsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reportType, setReportType] = useState<'spending' | 'income'>('spending');
   const [timeFilter, setTimeFilter] = useState<'all' | 'last30' | 'thisYear'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryData | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
   const { formatAmount } = useCurrency();
 
   useEffect(() => {
@@ -86,6 +88,23 @@ export default function ReportsScreen() {
     return monthlyData.slice(startMonth, currentMonth + 1);
   };
 
+  // Category colors mapping
+  const getCategoryColor = (categoryName: string, index: number) => {
+    const colors = [
+      '#4A9EFF', // Blue
+      '#FF6B6B', // Red
+      '#4ECDC4', // Teal
+      '#45B7D1', // Light Blue
+      '#96CEB4', // Green
+      '#FFEAA7', // Yellow
+      '#DDA0DD', // Plum
+      '#98D8C8', // Mint
+      '#F7DC6F', // Light Yellow
+      '#BB8FCE', // Light Purple
+    ];
+    return colors[index % colors.length];
+  };
+
   const getCategoryData = (): CategoryData[] => {
     const filtered = getFilteredTransactions();
     const categoryTotals: { [key: string]: number } = {};
@@ -107,9 +126,35 @@ export default function ReportsScreen() {
       .slice(0, 4);
   };
 
+  const getDetailedCategoryData = (): CategoryData[] => {
+    const filtered = getFilteredTransactions();
+    const categoryTotals: { [key: string]: number } = {};
+
+    filtered.forEach(t => {
+      const category = t.category || 'Other';
+      categoryTotals[category] = (categoryTotals[category] || 0) + t.amount;
+    });
+
+    const total = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+
+    return Object.entries(categoryTotals)
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        percentage: total > 0 ? (amount / total) * 100 : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  };
+
+  const handleCategoryPress = (category: CategoryData) => {
+    setSelectedCategory(category);
+    setDetailsVisible(true);
+  };
+
   const monthlyData = getMonthlyData();
   const maxAmount = Math.max(...monthlyData.map(d => d.amount));
   const categoryData = getCategoryData();
+  const detailedCategoryData = getDetailedCategoryData();
   const totalAmount = getTotalAmount();
   
   const getCurrentMonthChange = () => {
@@ -252,21 +297,81 @@ export default function ReportsScreen() {
           </Text>
           <View style={styles.categoryContainer}>
             {categoryData.map((category, index) => (
-              <View key={category.name} style={styles.categoryItem}>
+              <TouchableOpacity 
+                key={category.name} 
+                style={styles.categoryItem}
+                onPress={() => handleCategoryPress(category)}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.categoryName}>{category.name}</Text>
                 <View style={styles.progressBarContainer}>
                   <View style={styles.progressBar}>
                     <View 
-                      style={[styles.progressFill, { width: `${category.percentage}%` }]} 
+                      style={[
+                        styles.progressFill, 
+                        { 
+                          width: `${category.percentage}%`,
+                          backgroundColor: getCategoryColor(category.name, index)
+                        }
+                      ]} 
                     />
                   </View>
                 </View>
                 <Text style={styles.categoryAmount}>{formatAmount(category.amount)}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
       </ScrollView>
+
+      {/* Category Details Modal */}
+      <Modal
+        visible={detailsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDetailsVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.overlayDismiss} onPress={() => setDetailsVisible(false)} />
+          <View style={styles.detailsModal}>
+            <View style={styles.detailsHeader}>
+              <Text style={styles.detailsTitle}>
+                {reportType === 'spending' ? 'Spending' : 'Income'} Breakdown
+              </Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setDetailsVisible(false)}
+              >
+                <X size={20} color="#8B9DC3" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.detailsSubtitle}>
+              {getTimeFilterLabel()} • Total: {formatAmount(totalAmount)}
+            </Text>
+
+            <ScrollView style={styles.detailsList} showsVerticalScrollIndicator={false}>
+              {detailedCategoryData.map((category, index) => (
+                <View key={category.name} style={styles.detailsItem}>
+                  <View style={styles.detailsItemLeft}>
+                    <View 
+                      style={[
+                        styles.categoryColorDot, 
+                        { backgroundColor: getCategoryColor(category.name, index) }
+                      ]} 
+                    />
+                    <Text style={styles.detailsCategoryName}>{category.name}</Text>
+                  </View>
+                  <View style={styles.detailsItemRight}>
+                    <Text style={styles.detailsAmount}>{formatAmount(category.amount)}</Text>
+                    <Text style={styles.detailsPercentage}>{category.percentage.toFixed(1)}%</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -469,5 +574,85 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     width: 60,
     textAlign: 'right',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  detailsModal: {
+    backgroundColor: '#0F1621',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  detailsSubtitle: {
+    fontSize: 16,
+    color: '#8B9DC3',
+    marginBottom: 20,
+  },
+  detailsList: {
+    maxHeight: 400,
+  },
+  detailsItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139, 157, 195, 0.1)',
+  },
+  detailsItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  detailsCategoryName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  detailsItemRight: {
+    alignItems: 'flex-end',
+  },
+  detailsAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  detailsPercentage: {
+    fontSize: 16,
+    color: '#8B9DC3',
   },
 });
