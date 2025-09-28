@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Target, Calendar, TrendingUp, Plus } from 'lucide-react-native';
+import { Briefcase, Shield, Home, Plus, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
@@ -21,9 +21,10 @@ interface Goal {
   targetAmount: number;
   deadline: string;
   createdAt: string;
+  icon: string;
 }
 
-export default function AnalyticsScreen() {
+export default function GoalsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalSavings, setTotalSavings] = useState(0);
   const { formatAmount } = useCurrency();
@@ -32,6 +33,7 @@ export default function AnalyticsScreen() {
   const [goalTitle, setGoalTitle] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
   const [goalDeadline, setGoalDeadline] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState('briefcase');
 
   useEffect(() => {
     loadData();
@@ -56,31 +58,40 @@ export default function AnalyticsScreen() {
       const goalsData = await AsyncStorage.getItem('goals');
       if (goalsData) {
         setGoals(JSON.parse(goalsData));
+      } else {
+        // Set default goals if none exist
+        const defaultGoals = [
+          {
+            id: 1,
+            title: 'Vacation Fund',
+            targetAmount: 2000,
+            deadline: '2024-12-31',
+            createdAt: new Date().toISOString(),
+            icon: 'briefcase'
+          },
+          {
+            id: 2,
+            title: 'Emergency Fund',
+            targetAmount: 1000,
+            deadline: '2024-08-31',
+            createdAt: new Date().toISOString(),
+            icon: 'shield'
+          },
+          {
+            id: 3,
+            title: 'Down Payment',
+            targetAmount: 5000,
+            deadline: '2025-06-30',
+            createdAt: new Date().toISOString(),
+            icon: 'home'
+          }
+        ];
+        setGoals(defaultGoals);
+        await AsyncStorage.setItem('goals', JSON.stringify(defaultGoals));
       }
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
-
-  const calculateStats = () => {
-    const now = new Date();
-    const thisMonth = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === now.getMonth() && 
-             transactionDate.getFullYear() === now.getFullYear();
-    });
-
-    const thisWeek = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return transactionDate >= weekAgo;
-    });
-
-    const monthlyIncome = thisMonth.filter(t => t.type === 'add').reduce((sum, t) => sum + t.amount, 0);
-    const monthlyExpenses = thisMonth.filter(t => t.type === 'subtract').reduce((sum, t) => sum + t.amount, 0);
-    const weeklyIncome = thisWeek.filter(t => t.type === 'add').reduce((sum, t) => sum + t.amount, 0);
-
-    return { monthlyIncome, monthlyExpenses, weeklyIncome };
   };
 
   const createGoal = async () => {
@@ -97,6 +108,7 @@ export default function AnalyticsScreen() {
       targetAmount: amount,
       deadline: goalDeadline,
       createdAt: new Date().toISOString(),
+      icon: selectedIcon,
     };
 
     const updatedGoals = [...goals, newGoal];
@@ -112,128 +124,88 @@ export default function AnalyticsScreen() {
     setGoalTitle('');
     setGoalAmount('');
     setGoalDeadline('');
+    setSelectedIcon('briefcase');
   };
 
   const calculateGoalProgress = (goal: Goal) => {
-    const remaining = Math.max(0, goal.targetAmount - totalSavings);
-    const deadline = new Date(goal.deadline);
-    const now = new Date();
-    const daysRemaining = Math.max(0, Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    
-    const dailyTarget = daysRemaining > 0 ? remaining / daysRemaining : 0;
-    const weeklyTarget = dailyTarget * 7;
-    const monthlyTarget = dailyTarget * 30;
-
+    const progress = Math.min(100, (totalSavings / goal.targetAmount) * 100);
     return {
-      remaining,
-      daysRemaining,
-      dailyTarget,
-      weeklyTarget,
-      monthlyTarget,
-      progress: Math.min(100, (totalSavings / goal.targetAmount) * 100),
+      progress,
+      currentAmount: Math.min(totalSavings, goal.targetAmount),
     };
   };
 
-  const stats = calculateStats();
+  const getGoalIcon = (iconName: string) => {
+    const iconProps = { size: 24, color: '#4A9EFF' };
+    
+    switch (iconName) {
+      case 'briefcase':
+        return <Briefcase {...iconProps} />;
+      case 'shield':
+        return <Shield {...iconProps} />;
+      case 'home':
+        return <Home {...iconProps} />;
+      default:
+        return <Briefcase {...iconProps} />;
+    }
+  };
+
+  const iconOptions = [
+    { name: 'briefcase', icon: Briefcase, label: 'Briefcase' },
+    { name: 'shield', icon: Shield, label: 'Shield' },
+    { name: 'home', icon: Home, label: 'Home' },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.spacer} />
+        <Text style={styles.headerTitle}>Goals</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Plus size={24} color="#4A9EFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Goals List */}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Analytics</Text>
-
-        {/* Stats Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Month</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Income</Text>
-              <Text style={[styles.statValue, { color: '#000000' }]}>
-                {formatAmount(stats.monthlyIncome)}
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Expenses</Text>
-              <Text style={[styles.statValue, { color: '#666666' }]}>
-                {formatAmount(stats.monthlyExpenses)}
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>This Week</Text>
-              <Text style={styles.statValue}>
-                {formatAmount(stats.weeklyIncome)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Goals Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Goals</Text>
-            <TouchableOpacity 
-              style={styles.addGoalButton}
-              onPress={() => setModalVisible(true)}
-            >
-              <Plus size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {goals.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Target size={48} color="#E5E5E5" />
-              <Text style={styles.emptyText}>No goals set yet</Text>
-              <Text style={styles.emptySubtext}>Create your first savings goal</Text>
-            </View>
-          ) : (
-            <View style={styles.goalsContainer}>
-              {goals.map((goal) => {
-                const progress = calculateGoalProgress(goal);
-                return (
-                  <View key={goal.id} style={styles.goalCard}>
-                    <View style={styles.goalHeader}>
-                      <Text style={styles.goalTitle}>{goal.title}</Text>
-                      <Text style={styles.goalProgress}>{progress.progress.toFixed(1)}%</Text>
-                    </View>
-                    
-                    <View style={styles.progressBar}>
-                      <View 
-                        style={[
-                          styles.progressFill, 
-                          { width: `${Math.min(100, progress.progress)}%` }
-                        ]} 
-                      />
-                    </View>
-
-                    <View style={styles.goalStats}>
-                      <Text style={styles.goalAmount}>
-                        {formatAmount(totalSavings)} / {formatAmount(goal.targetAmount)}
-                      </Text>
-                      <Text style={styles.goalDeadline}>
-                        {progress.daysRemaining} days left
-                      </Text>
-                    </View>
-
-                    {progress.remaining > 0 && (
-                      <View style={styles.savingTargets}>
-                        <View style={styles.targetItem}>
-                          <Text style={styles.targetLabel}>Daily</Text>
-                          <Text style={styles.targetAmount}>{formatAmount(progress.dailyTarget)}</Text>
-                        </View>
-                        <View style={styles.targetItem}>
-                          <Text style={styles.targetLabel}>Weekly</Text>
-                          <Text style={styles.targetAmount}>{formatAmount(progress.weeklyTarget)}</Text>
-                        </View>
-                        <View style={styles.targetItem}>
-                          <Text style={styles.targetLabel}>Monthly</Text>
-                          <Text style={styles.targetAmount}>{formatAmount(progress.monthlyTarget)}</Text>
-                        </View>
-                      </View>
-                    )}
+        <View style={styles.goalsContainer}>
+          {goals.map((goal) => {
+            const { progress, currentAmount } = calculateGoalProgress(goal);
+            return (
+              <View key={goal.id} style={styles.goalCard}>
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalIconContainer}>
+                    {getGoalIcon(goal.icon)}
                   </View>
-                );
-              })}
-            </View>
-          )}
+                  <View style={styles.goalInfo}>
+                    <View style={styles.goalTitleRow}>
+                      <Text style={styles.goalTitle}>{goal.title}</Text>
+                      <Text style={styles.goalAmount}>{formatAmount(currentAmount)}</Text>
+                    </View>
+                    <View style={styles.goalSubtitleRow}>
+                      <Text style={styles.goalTarget}>of {formatAmount(goal.targetAmount)}</Text>
+                      <Text style={styles.goalPercentage}>{progress.toFixed(0)}%</Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBar}>
+                    <View 
+                      style={[
+                        styles.progressFill, 
+                        { width: `${Math.min(100, progress)}%` }
+                      ]} 
+                    />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -246,7 +218,15 @@ export default function AnalyticsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Set New Goal</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create New Goal</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <X size={24} color="#8B9DC3" />
+              </TouchableOpacity>
+            </View>
             
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Goal Title</Text>
@@ -255,21 +235,20 @@ export default function AnalyticsScreen() {
                 value={goalTitle}
                 onChangeText={setGoalTitle}
                 placeholder="e.g., Vacation Fund"
+                placeholderTextColor="#8B9DC3"
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Target Amount</Text>
-              <View style={styles.amountInputContainer}>
-                <Text style={styles.currencySymbol}>₹</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  value={goalAmount}
-                  onChangeText={setGoalAmount}
-                  placeholder="0.00"
-                  keyboardType="numeric"
-                />
-              </View>
+              <TextInput
+                style={styles.textInput}
+                value={goalAmount}
+                onChangeText={setGoalAmount}
+                placeholder="0.00"
+                placeholderTextColor="#8B9DC3"
+                keyboardType="numeric"
+              />
             </View>
 
             <View style={styles.inputGroup}>
@@ -279,7 +258,29 @@ export default function AnalyticsScreen() {
                 value={goalDeadline}
                 onChangeText={setGoalDeadline}
                 placeholder="2024-12-31"
+                placeholderTextColor="#8B9DC3"
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Icon</Text>
+              <View style={styles.iconSelector}>
+                {iconOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.name}
+                    style={[
+                      styles.iconOption,
+                      selectedIcon === option.name && styles.selectedIconOption
+                    ]}
+                    onPress={() => setSelectedIcon(option.name)}
+                  >
+                    <option.icon 
+                      size={20} 
+                      color={selectedIcon === option.name ? '#4A9EFF' : '#8B9DC3'} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <View style={styles.modalButtons}>
@@ -290,6 +291,7 @@ export default function AnalyticsScreen() {
                   setGoalTitle('');
                   setGoalAmount('');
                   setGoalDeadline('');
+                  setSelectedIcon('briefcase');
                 }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -312,149 +314,106 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E2A3A',
+    backgroundColor: '#0F1621',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'space-between',
+  },
+  spacer: {
+    width: 40,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(74, 158, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 24,
+    padding: 16,
     paddingBottom: 100,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  addGoalButton: {
-    backgroundColor: '#4A9EFF',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  statCard: {
-    backgroundColor: '#2A3F54',
-    padding: 16,
-    borderRadius: 12,
-    flex: 1,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 16,
-    color: '#8B9DC3',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 48,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#8B9DC3',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: '#8B9DC3',
-    marginTop: 4,
-  },
   goalsContainer: {
-    gap: 16,
+    gap: 24,
   },
   goalCard: {
-    backgroundColor: '#2A3F54',
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
   },
   goalHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 12,
+  },
+  goalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(74, 158, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalInfo: {
+    flex: 1,
+  },
+  goalTitleRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   goalTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  goalProgress: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4A9EFF',
+  goalAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  goalSubtitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  goalTarget: {
+    fontSize: 14,
+    color: '#8B9DC3',
+  },
+  goalPercentage: {
+    fontSize: 14,
+    color: '#8B9DC3',
+  },
+  progressBarContainer: {
+    marginTop: 12,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: '#3A4F64',
-    borderRadius: 3,
-    marginBottom: 12,
+    height: 8,
+    backgroundColor: '#2A3F54',
+    borderRadius: 4,
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4A9EFF',
-    borderRadius: 3,
-  },
-  goalStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  goalAmount: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  goalDeadline: {
-    fontSize: 14,
-    color: '#8B9DC3',
-  },
-  savingTargets: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#3A4F64',
-  },
-  targetItem: {
-    alignItems: 'center',
-  },
-  targetLabel: {
-    fontSize: 12,
-    color: '#8B9DC3',
-    marginBottom: 4,
-  },
-  targetAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    borderRadius: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -463,18 +422,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#2A3F54',
+    backgroundColor: '#0F1621',
     borderRadius: 16,
     padding: 24,
     width: '90%',
     maxWidth: 400,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 24,
-    textAlign: 'center',
+  },
+  closeButton: {
+    padding: 4,
   },
   inputGroup: {
     marginBottom: 20,
@@ -487,33 +453,30 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#3A4F64',
+    borderColor: '#2A3F54',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     color: '#FFFFFF',
-    backgroundColor: '#1E2A3A',
+    backgroundColor: '#111C2A',
   },
-  amountInputContainer: {
+  iconSelector: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
+  },
+  iconOption: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#111C2A',
     borderWidth: 1,
-    borderColor: '#3A4F64',
-    borderRadius: 8,
-    paddingLeft: 12,
-    backgroundColor: '#1E2A3A',
+    borderColor: '#2A3F54',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  currencySymbol: {
-    fontSize: 16,
-    color: '#8B9DC3',
-    marginRight: 8,
-  },
-  amountInput: {
-    flex: 1,
-    padding: 12,
-    paddingLeft: 0,
-    fontSize: 16,
-    color: '#FFFFFF',
+  selectedIconOption: {
+    borderColor: '#4A9EFF',
+    backgroundColor: 'rgba(74, 158, 255, 0.1)',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -525,7 +488,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3A4F64',
+    borderColor: '#2A3F54',
     alignItems: 'center',
   },
   cancelButtonText: {
