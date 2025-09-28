@@ -67,11 +67,11 @@ export default function ReportsScreen() {
   };
 
   const getMonthlyData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = new Date().getFullYear();
     const filtered = getFilteredTransactions();
 
-    return months.map((month, index) => {
+    const monthlyData = months.map((month, index) => {
       const monthTransactions = filtered.filter(t => {
         const date = new Date(t.date);
         return date.getMonth() === index && date.getFullYear() === currentYear;
@@ -79,6 +79,11 @@ export default function ReportsScreen() {
       const amount = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
       return { month, amount };
     });
+
+    // Only show last 6 months for better visualization
+    const currentMonth = new Date().getMonth();
+    const startMonth = Math.max(0, currentMonth - 5);
+    return monthlyData.slice(startMonth, currentMonth + 1);
   };
 
   const getCategoryData = (): CategoryData[] => {
@@ -106,6 +111,39 @@ export default function ReportsScreen() {
   const maxAmount = Math.max(...monthlyData.map(d => d.amount));
   const categoryData = getCategoryData();
   const totalAmount = getTotalAmount();
+  
+  const getCurrentMonthChange = () => {
+    const now = new Date();
+    const currentMonth = transactions.filter(t => {
+      const date = new Date(t.date);
+      return date.getMonth() === now.getMonth() && 
+             date.getFullYear() === now.getFullYear() &&
+             t.type === (reportType === 'spending' ? 'subtract' : 'add');
+    });
+    
+    const lastMonth = transactions.filter(t => {
+      const date = new Date(t.date);
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return date.getMonth() === lastMonthDate.getMonth() && 
+             date.getFullYear() === lastMonthDate.getFullYear() &&
+             t.type === (reportType === 'spending' ? 'subtract' : 'add');
+    });
+    
+    const currentTotal = currentMonth.reduce((sum, t) => sum + t.amount, 0);
+    const lastTotal = lastMonth.reduce((sum, t) => sum + t.amount, 0);
+    
+    if (lastTotal === 0) return 0;
+    return ((currentTotal - lastTotal) / lastTotal) * 100;
+  };
+
+  const monthChange = getCurrentMonthChange();
+  const getTimeFilterLabel = () => {
+    switch (timeFilter) {
+      case 'last30': return 'Last 30 days';
+      case 'thisYear': return 'This year';
+      default: return 'All time';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -169,8 +207,15 @@ export default function ReportsScreen() {
             <Text style={styles.chartLabel}>{reportType === 'spending' ? 'Spending' : 'Income'}</Text>
             <Text style={styles.chartAmount}>{formatAmount(totalAmount)}</Text>
             <View style={styles.chartSubInfo}>
-              <Text style={styles.chartPeriod}>This month</Text>
-              <Text style={styles.chartChange}>-12%</Text>
+              <Text style={styles.chartPeriod}>{getTimeFilterLabel()}</Text>
+              {monthChange !== 0 && (
+                <Text style={[
+                  styles.chartChange, 
+                  { color: monthChange > 0 ? '#FF5A5F' : '#4CAF50' }
+                ]}>
+                  {monthChange > 0 ? '+' : ''}{monthChange.toFixed(1)}%
+                </Text>
+              )}
             </View>
           </View>
 
@@ -178,7 +223,7 @@ export default function ReportsScreen() {
           <View style={styles.barChart}>
             {monthlyData.map((data, index) => {
               const height = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
-              const isCurrentMonth = index === 4; // May is highlighted in the design
+              const isCurrentMonth = index === monthlyData.length - 1; // Current month is highlighted
               
               return (
                 <View key={data.month} style={styles.barContainer}>
