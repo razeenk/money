@@ -222,7 +222,7 @@ export default function SavingsScreen() {
     const dateString = selectedDate || formatDate(new Date());
 
       const newTransaction: Transaction = {
-        id: Date.now(),
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       amount: numericAmount,
         type: selectedType,
       date: parseDate(dateString).toISOString(),

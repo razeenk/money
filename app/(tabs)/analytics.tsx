@@ -329,7 +329,7 @@ export default function GoalsScreen() {
                 style={styles.goalCard}
                 onPress={() => {
                   setSelectedGoal(goal);
-                  setUpdateAmount(goal.savedAmount.toString());
+                  setUpdateAmount(String(goal.savedAmount || 0));
                   setUpdateModalVisible(true);
                 }}
                 activeOpacity={0.7}
