@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Animated, Easing, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Car, Home, GraduationCap, Plane, PiggyBank, Gift, Smartphone, Heart, ShoppingCart, Plus, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Car, Home, GraduationCap, Plane, PiggyBank, Gift, Smartphone, Heart, ShoppingCart, Plus, X, Calendar, ChevronLeft, ChevronRight, ArrowLeft, History, Trash2 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Goal {
-  id: number;
+  id: string;
   title: string;
   targetAmount: number;
   savedAmount: number;
@@ -16,13 +16,23 @@ interface Goal {
   description?: string;
 }
 
+interface GoalHistory {
+  id: string;
+  goalId: string;
+  amount: number;
+  date: string;
+  type: 'add' | 'subtract';
+}
+
 export default function GoalsScreen() {
   const { formatAmount } = useCurrency();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalHistory, setGoalHistory] = useState<GoalHistory[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [updateModalVisible, setUpdateModalVisible] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
-  const [updateAmount, setUpdateAmount] = useState('');
+  const [addAmount, setAddAmount] = useState('');
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const animTranslate = useRef(new Animated.Value(0)).current;
@@ -40,6 +50,7 @@ export default function GoalsScreen() {
 
   useEffect(() => {
     loadGoals();
+    loadGoalHistory();
   }, []);
 
   const loadGoals = async () => {
@@ -50,6 +61,26 @@ export default function GoalsScreen() {
       }
     } catch (error) {
       console.error('Error loading goals:', error);
+    }
+  };
+
+  const loadGoalHistory = async () => {
+    try {
+      const historyData = await AsyncStorage.getItem('goalHistory');
+      if (historyData) {
+        setGoalHistory(JSON.parse(historyData));
+      }
+    } catch (error) {
+      console.error('Error loading goal history:', error);
+    }
+  };
+
+  const saveGoalHistory = async (newHistory: GoalHistory[]) => {
+    try {
+      await AsyncStorage.setItem('goalHistory', JSON.stringify(newHistory));
+      setGoalHistory(newHistory);
+    } catch (error) {
+      console.error('Error saving goal history:', error);
     }
   };
 
@@ -188,39 +219,115 @@ export default function GoalsScreen() {
     setModalVisible(false);
   };
 
-  const updateGoalSavings = async () => {
+  const addFundsToGoal = async () => {
     if (!selectedGoal) return;
     
-    const amount = parseFloat(updateAmount);
-    if (isNaN(amount) || amount < 0) {
+    const amount = parseFloat(addAmount);
+    if (isNaN(amount) || amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid amount');
       return;
     }
 
-    if (amount > selectedGoal.targetAmount) {
-      Alert.alert('Amount Exceeded', 'Saved amount cannot exceed target amount');
+    const newSavedAmount = selectedGoal.savedAmount + amount;
+    if (newSavedAmount > selectedGoal.targetAmount) {
+      Alert.alert('Amount Exceeded', 'Total saved amount cannot exceed target amount');
       return;
     }
 
+    // Update goal
     const updatedGoals = goals.map(goal => 
       goal.id === selectedGoal.id 
-        ? { ...goal, savedAmount: amount }
+        ? { ...goal, savedAmount: newSavedAmount }
         : goal
     );
 
+    // Add to history
+    const historyEntry: GoalHistory = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+      goalId: selectedGoal.id,
+      amount: amount,
+      date: new Date().toISOString(),
+      type: 'add'
+    };
+
+    const updatedHistory = [historyEntry, ...goalHistory];
+
     setGoals(updatedGoals);
+    setSelectedGoal({ ...selectedGoal, savedAmount: newSavedAmount });
     
     try {
       await AsyncStorage.setItem('goals', JSON.stringify(updatedGoals));
-      Alert.alert('Success', 'Goal updated successfully!');
+      await saveGoalHistory(updatedHistory);
+      Alert.alert('Success', `${formatAmount(amount)} added to ${selectedGoal.title}!`);
     } catch (error) {
       console.error('Error updating goal:', error);
       Alert.alert('Error', 'Failed to update goal');
     }
 
-    setUpdateModalVisible(false);
-    setSelectedGoal(null);
-    setUpdateAmount('');
+    setAddAmount('');
+  };
+
+  const deleteGoal = async () => {
+    if (!selectedGoal) return;
+
+    Alert.alert(
+      'Delete Goal',
+      `Are you sure you want to delete "${selectedGoal.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const updatedGoals = goals.filter(goal => goal.id !== selectedGoal.id);
+            const updatedHistory = goalHistory.filter(entry => entry.goalId !== selectedGoal.id);
+            
+            setGoals(updatedGoals);
+            
+            try {
+              await AsyncStorage.setItem('goals', JSON.stringify(updatedGoals));
+              await saveGoalHistory(updatedHistory);
+              setDetailsVisible(false);
+              setSelectedGoal(null);
+              Alert.alert('Success', 'Goal deleted successfully!');
+            } catch (error) {
+              console.error('Error deleting goal:', error);
+              Alert.alert('Error', 'Failed to delete goal');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const markGoalComplete = async () => {
+    if (!selectedGoal) return;
+
+    Alert.alert(
+      'Mark as Complete',
+      `Congratulations! Mark "${selectedGoal.title}" as completed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: async () => {
+            const updatedGoals = goals.filter(goal => goal.id !== selectedGoal.id);
+            
+            setGoals(updatedGoals);
+            
+            try {
+              await AsyncStorage.setItem('goals', JSON.stringify(updatedGoals));
+              setDetailsVisible(false);
+              setSelectedGoal(null);
+              Alert.alert('Congratulations!', `You've completed your goal: ${selectedGoal.title}! 🎉`);
+            } catch (error) {
+              console.error('Error completing goal:', error);
+              Alert.alert('Error', 'Failed to complete goal');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const resetForm = () => {
@@ -233,6 +340,19 @@ export default function GoalsScreen() {
 
   const calculateProgress = (goal: Goal) => {
     return Math.min(100, (goal.savedAmount / goal.targetAmount) * 100);
+  };
+
+  const calculateBreakdown = (goal: Goal) => {
+    const now = new Date();
+    const deadline = new Date(goal.deadline);
+    const daysLeft = Math.max(0, Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    const remaining = goal.targetAmount - goal.savedAmount;
+    
+    return {
+      daily: daysLeft > 0 ? remaining / daysLeft : 0,
+      weekly: daysLeft > 0 ? remaining / (daysLeft / 7) : 0,
+      monthly: daysLeft > 0 ? remaining / (daysLeft / 30) : 0,
+    };
   };
 
   const getGoalIcon = (iconName: string, size: number = 24) => {
@@ -268,6 +388,10 @@ export default function GoalsScreen() {
     return new Date(dateString).toLocaleDateString('en-GB');
   };
 
+  const getGoalHistoryForGoal = (goalId: string) => {
+    return goalHistory.filter(entry => entry.goalId === goalId);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -293,8 +417,7 @@ export default function GoalsScreen() {
                 style={styles.goalCard}
                 onPress={() => {
                   setSelectedGoal(goal);
-                  setUpdateAmount(String(goal.savedAmount || 0));
-                  setUpdateModalVisible(true);
+                  setDetailsVisible(true);
                 }}
                 activeOpacity={0.7}
               >
@@ -330,6 +453,166 @@ export default function GoalsScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* Goal Details Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={detailsVisible}
+        onRequestClose={() => setDetailsVisible(false)}
+      >
+        <SafeAreaView style={styles.detailsContainer}>
+          {selectedGoal && (
+            <>
+              {/* Details Header */}
+              <View style={styles.detailsHeader}>
+                <TouchableOpacity 
+                  style={styles.backButton}
+                  onPress={() => setDetailsVisible(false)}
+                >
+                  <ArrowLeft size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+                <Text style={styles.detailsHeaderTitle}>Goal Details</Text>
+                <TouchableOpacity 
+                  style={styles.historyButton}
+                  onPress={() => setHistoryVisible(true)}
+                >
+                  <History size={24} color="#4A9EFF" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.detailsContent}>
+                {/* Goal Title */}
+                <Text style={styles.detailsGoalTitle}>{selectedGoal.title}</Text>
+
+                {/* Progress Section */}
+                <View style={styles.progressSection}>
+                  <View style={styles.progressInfo}>
+                    <Text style={styles.savedLabel}>Saved</Text>
+                    <Text style={styles.progressAmount}>
+                      {formatAmount(selectedGoal.savedAmount)} / {formatAmount(selectedGoal.targetAmount)}
+                    </Text>
+                  </View>
+                  <View style={styles.detailsProgressBar}>
+                    <View 
+                      style={[
+                        styles.detailsProgressFill, 
+                        { width: `${calculateProgress(selectedGoal)}%` }
+                      ]} 
+                    />
+                  </View>
+                </View>
+
+                {/* Add Funds Section */}
+                <View style={styles.addFundsSection}>
+                  <Text style={styles.sectionTitle}>Add Funds</Text>
+                  <View style={styles.addFundsContainer}>
+                    <TextInput
+                      style={styles.addFundsInput}
+                      placeholder="Enter amount"
+                      placeholderTextColor="#8B9DC3"
+                      value={addAmount}
+                      onChangeText={setAddAmount}
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity 
+                      style={styles.addButton}
+                      onPress={addFundsToGoal}
+                    >
+                      <Text style={styles.addButtonText}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Breakdown Section */}
+                <View style={styles.breakdownSection}>
+                  <Text style={styles.sectionTitle}>Breakdown</Text>
+                  {(() => {
+                    const breakdown = calculateBreakdown(selectedGoal);
+                    return (
+                      <View style={styles.breakdownList}>
+                        <View style={styles.breakdownItem}>
+                          <Text style={styles.breakdownLabel}>Daily</Text>
+                          <Text style={styles.breakdownAmount}>{formatAmount(breakdown.daily)}</Text>
+                        </View>
+                        <View style={styles.breakdownItem}>
+                          <Text style={styles.breakdownLabel}>Weekly</Text>
+                          <Text style={styles.breakdownAmount}>{formatAmount(breakdown.weekly)}</Text>
+                        </View>
+                        <View style={styles.breakdownItem}>
+                          <Text style={styles.breakdownLabel}>Monthly</Text>
+                          <Text style={styles.breakdownAmount}>{formatAmount(breakdown.monthly)}</Text>
+                        </View>
+                      </View>
+                    );
+                  })()}
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={deleteGoal}
+                >
+                  <Text style={styles.deleteButtonText}>Delete Goal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.completeButton}
+                  onPress={markGoalComplete}
+                >
+                  <Text style={styles.completeButtonText}>Mark as Complete</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Goal History Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={historyVisible}
+        onRequestClose={() => setHistoryVisible(false)}
+      >
+        <SafeAreaView style={styles.historyContainer}>
+          <View style={styles.historyHeader}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setHistoryVisible(false)}
+            >
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.historyHeaderTitle}>Goal History</Text>
+            <View style={styles.spacer} />
+          </View>
+
+          <ScrollView style={styles.historyContent}>
+            {selectedGoal && getGoalHistoryForGoal(selectedGoal.id).map((entry) => (
+              <View key={entry.id} style={styles.historyItem}>
+                <View style={styles.historyItemLeft}>
+                  <View style={styles.historyIcon}>
+                    <Plus size={16} color="#4CAF50" />
+                  </View>
+                  <View style={styles.historyDetails}>
+                    <Text style={styles.historyAmount}>+{formatAmount(entry.amount)}</Text>
+                    <Text style={styles.historyDate}>
+                      {new Date(entry.date).toLocaleDateString('en-GB')} at {new Date(entry.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+            {selectedGoal && getGoalHistoryForGoal(selectedGoal.id).length === 0 && (
+              <View style={styles.emptyHistory}>
+                <Text style={styles.emptyHistoryText}>No history yet</Text>
+                <Text style={styles.emptyHistorySubtext}>Start adding funds to see your progress</Text>
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* Goal Creation Modal */}
       <Modal
@@ -424,7 +707,7 @@ export default function GoalsScreen() {
                     onPress={() => setSelectedIcon(option.name)}
                   >
                     <option.icon 
-                      size={32} 
+                      size={24} 
                       color={selectedIcon === option.name ? '#4A9EFF' : '#8B9DC3'} 
                     />
                   </TouchableOpacity>
@@ -458,67 +741,6 @@ export default function GoalsScreen() {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </Modal>
-
-      {/* Update Savings Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={updateModalVisible}
-        onRequestClose={() => setUpdateModalVisible(false)}
-      >
-        <View style={styles.updateModalOverlay}>
-          <View style={styles.updateModalContent}>
-            <View style={styles.updateModalHeader}>
-              <Text style={styles.updateModalTitle}>Update Savings</Text>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setUpdateModalVisible(false)}
-              >
-                <X size={20} color="#8B9DC3" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedGoal && (
-              <>
-                <Text style={styles.updateModalSubtitle}>
-                  {selectedGoal.title}
-                </Text>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Current saved amount</Text>
-                  <View style={styles.amountInputContainer}>
-                    <Text style={styles.dollarSign}>$</Text>
-                    <TextInput
-                      style={styles.amountInput}
-                      value={updateAmount}
-                      onChangeText={setUpdateAmount}
-                      placeholder="0"
-                      placeholderTextColor="#8B9DC3"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.updateModalButtons}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={() => setUpdateModalVisible(false)}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.updateButton}
-                    onPress={updateGoalSavings}
-                  >
-                    <Text style={styles.updateButtonText}>Update</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
       </Modal>
 
       {/* Calendar Date Picker */}
@@ -688,6 +910,231 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A9EFF',
     borderRadius: 4,
   },
+  // Goal Details Modal styles
+  detailsContainer: {
+    flex: 1,
+    backgroundColor: '#0F1621',
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139, 157, 195, 0.1)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  historyButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsContent: {
+    flex: 1,
+    padding: 24,
+  },
+  detailsGoalTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 32,
+  },
+  progressSection: {
+    marginBottom: 40,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  savedLabel: {
+    fontSize: 16,
+    color: '#8B9DC3',
+  },
+  progressAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  detailsProgressBar: {
+    height: 12,
+    backgroundColor: '#2A3F54',
+    borderRadius: 6,
+  },
+  detailsProgressFill: {
+    height: '100%',
+    backgroundColor: '#4A9EFF',
+    borderRadius: 6,
+  },
+  addFundsSection: {
+    marginBottom: 40,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  addFundsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addFundsInput: {
+    flex: 1,
+    backgroundColor: '#2A3F54',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  breakdownSection: {
+    marginBottom: 40,
+  },
+  breakdownList: {
+    gap: 16,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A3F54',
+  },
+  breakdownLabel: {
+    fontSize: 18,
+    color: '#8B9DC3',
+  },
+  breakdownAmount: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  actionButtons: {
+    padding: 24,
+    gap: 16,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(255, 90, 95, 0.1)',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF5A5F',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF5A5F',
+  },
+  completeButton: {
+    backgroundColor: '#4A9EFF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  completeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  // History Modal styles
+  historyContainer: {
+    flex: 1,
+    backgroundColor: '#0F1621',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139, 157, 195, 0.1)',
+  },
+  historyHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  historyContent: {
+    flex: 1,
+    padding: 16,
+  },
+  historyItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyDetails: {
+    flex: 1,
+  },
+  historyAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 4,
+  },
+  historyDate: {
+    fontSize: 14,
+    color: '#8B9DC3',
+  },
+  emptyHistory: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyHistoryText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8B9DC3',
+    marginBottom: 8,
+  },
+  emptyHistorySubtext: {
+    fontSize: 14,
+    color: '#8B9DC3',
+    textAlign: 'center',
+  },
   // Modal styles
   modalContainer: {
     flex: 1,
@@ -791,7 +1238,7 @@ const styles = StyleSheet.create({
   },
   iconOption: {
     width: '48%',
-    height: 80,
+    height: 60,
     borderRadius: 12,
     backgroundColor: '#111C2A',
     borderWidth: 2,
@@ -827,66 +1274,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
-  },
-  // Update modal styles
-  updateModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  updateModalContent: {
-    backgroundColor: '#0F1621',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-  },
-  updateModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  updateModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  updateModalSubtitle: {
-    fontSize: 16,
-    color: '#8B9DC3',
-    marginBottom: 24,
-  },
-  updateModalButtons: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 24,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2A3F54',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#8B9DC3',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  updateButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#4A9EFF',
-    alignItems: 'center',
-  },
-  updateButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   // Calendar styles
   pickerOverlay: {
