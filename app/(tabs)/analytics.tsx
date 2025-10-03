@@ -47,42 +47,6 @@ export default function GoalsScreen() {
       const goalsData = await AsyncStorage.getItem('goals');
       if (goalsData) {
         setGoals(JSON.parse(goalsData));
-      } else {
-        // Set default goals
-        const defaultGoals = [
-          {
-            id: 1,
-            title: 'Vacation Fund',
-            targetAmount: 2000,
-            savedAmount: 1200,
-            deadline: '2024-12-31',
-            createdAt: new Date().toISOString(),
-            icon: 'plane',
-            description: 'Summer vacation to Europe'
-          },
-          {
-            id: 2,
-            title: 'Emergency Fund',
-            targetAmount: 1000,
-            savedAmount: 500,
-            deadline: '2024-08-31',
-            createdAt: new Date().toISOString(),
-            icon: 'piggybank',
-            description: 'Emergency savings for unexpected expenses'
-          },
-          {
-            id: 3,
-            title: 'Down Payment',
-            targetAmount: 5000,
-            savedAmount: 2500,
-            deadline: '2025-06-30',
-            createdAt: new Date().toISOString(),
-            icon: 'home',
-            description: 'Down payment for new house'
-          }
-        ];
-        setGoals(defaultGoals);
-        await AsyncStorage.setItem('goals', JSON.stringify(defaultGoals));
       }
     } catch (error) {
       console.error('Error loading goals:', error);
